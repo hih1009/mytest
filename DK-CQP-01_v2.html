@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>교정품질절차서관리 · Calibration QMS Registry</title>
+<title>교정품질문서관리 · Calibration QMS Registry</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -227,7 +227,7 @@
   <div class="brand">
     <div class="brand-seal">QMS</div>
     <div class="brand-text">
-      <h1>교정품질절차서관리</h1>
+      <h1>교정품질문서관리</h1>
       <p id="userLine">CALIBRATION DOCUMENT REGISTRY</p>
     </div>
   </div>
@@ -796,8 +796,8 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.get
 function isoFromDateInput(dateStr){ return new Date((dateStr||todayStr())+'T00:00:00').toISOString(); }
 function ymdCompact(dateStr){ return (dateStr||todayStr()).replace(/-/g,'').slice(2); }
 function getExt(fname){ const i=(fname||'').lastIndexOf('.'); return i>=0 ? fname.slice(i+1) : ''; }
-function buildTplFileName(name, code, dateStr, idx, total, ext){
-  let base = `(양식)${name}_${code || '문서번호없음'}_${ymdCompact(dateStr)}`;
+function buildTplFileName(name, code, dateStr, rev, idx, total, ext){
+  let base = `(양식)${name}_${code || '문서번호없음'}_REV${String(rev).padStart(2,'0')}_${ymdCompact(dateStr)}`;
   if(total > 1) base += `_${idx+1}`;
   return ext ? `${base}.${ext}` : base;
 }
@@ -861,7 +861,7 @@ $('saveTplBtn').addEventListener('click', async ()=>{
   const files = [];
   for(let i=0;i<selectedFiles.length;i++){
     const f = selectedFiles[i];
-    const savedName = buildTplFileName(name, code, dateStr, i, selectedFiles.length, getExt(f.name));
+    const savedName = buildTplFileName(name, code, dateStr, 0, i, selectedFiles.length, getExt(f.name));
     const fileId = await driveCreateFile(savedName, folderId, f.type, f);
     files.push({ fileId, fileName: savedName });
   }
@@ -897,7 +897,7 @@ $('saveTplEditBtn').addEventListener('click', async ()=>{
   const filesArr = getRevisionFiles(rev0);
   for(let i=0;i<filesArr.length;i++){
     const f = filesArr[i];
-    const newName = buildTplFileName(t.name, t.code, dateStr, i, filesArr.length, getExt(f.fileName));
+    const newName = buildTplFileName(t.name, t.code, dateStr, rev0.rev, i, filesArr.length, getExt(f.fileName));
     await driveRename(f.fileId, newName);
     f.fileName = newName;
   }
@@ -928,7 +928,7 @@ $('saveRevBtn').addEventListener('click', async ()=>{
     const files = [];
     for(let i=0;i<selectedFiles.length;i++){
       const f = selectedFiles[i];
-      const savedName = buildTplFileName(t.name, t.code, dateStr, i, selectedFiles.length, getExt(f.name));
+      const savedName = buildTplFileName(t.name, t.code, dateStr, latest.rev, i, selectedFiles.length, getExt(f.name));
       const fileId = await driveCreateFile(savedName, t.driveFolderId, f.type, f);
       files.push({ fileId, fileName: savedName });
     }
@@ -944,7 +944,7 @@ $('saveRevBtn').addEventListener('click', async ()=>{
   const files = [];
   for(let i=0;i<selectedFiles.length;i++){
     const f = selectedFiles[i];
-    const savedName = buildTplFileName(t.name, t.code, dateStr, i, selectedFiles.length, getExt(f.name));
+    const savedName = buildTplFileName(t.name, t.code, dateStr, nextRev, i, selectedFiles.length, getExt(f.name));
     const fileId = await driveCreateFile(savedName, t.driveFolderId, f.type, f);
     files.push({ fileId, fileName: savedName });
   }
@@ -1022,7 +1022,11 @@ function renderRecords(){
     <thead><tr><th>상태</th><th>제목</th><th>등록일</th><th>작성 파일</th><th>서명본</th><th>관리</th></tr></thead>
     <tbody>${recs.map(r=>{
       const files = getRecordFiles(r);
-      const fileLinks = files.map(f=>`<button class="file-link" style="display:flex;margin-bottom:3px;" onclick="driveDownload('${f.fileId}','${escapeHtml(f.fileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(f.fileName))}</button>`).join('');
+      const fileLinks = files.map(f=>`
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+          <button class="file-link" onclick="driveDownload('${f.fileId}','${escapeHtml(f.fileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(f.fileName))}</button>
+          <button class="btn-ghost btn-sm" style="color:var(--red);padding:2px 5px;" title="이 파일 삭제" onclick="deleteRecordFile('${r.id}','${f.fileId}')">✕</button>
+        </div>`).join('');
       return `<tr>
         <td>${r.signedFileId ? '<span class="tag green">서명완료</span>' : '<span class="tag amber">서명대기</span>'}</td>
         <td><div class="rec-title">${escapeHtml(r.title)}</div>${r.memo?`<div class="rec-memo">${escapeHtml(r.memo)}</div>`:''}</td>
@@ -1041,6 +1045,19 @@ function renderRecords(){
     }).join('')}</tbody>
   </table></div>`;
 }
+window.deleteRecordFile = async (recId, fileId)=>{
+  const r = state.records.find(x=>x.id===recId);
+  const files = getRecordFiles(r);
+  if(files.length <= 1 && !confirm('마지막 남은 첨부 파일입니다. 그래도 삭제할까요?')) return;
+  if(files.length > 1 && !confirm('이 첨부 파일을 삭제할까요?')) return;
+  setSync('busy','삭제 중...');
+  await driveTrash(fileId);
+  r.files = files.filter(f=>f.fileId!==fileId);
+  delete r.fileId; delete r.fileName;
+  await saveMetadata(); renderRecords();
+  toast('파일이 삭제되었습니다');
+};
+
 function shortName(n){ return (n && n.length>18) ? n.slice(0,15)+'…' : n; }
 
 $('addRecBtn').addEventListener('click', ()=>{
