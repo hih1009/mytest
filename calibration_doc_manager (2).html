@@ -230,10 +230,7 @@
   <button class="btn btn-ghost btn-sm" id="signOutBtn" style="display:none;">로그아웃</button>
 </header>
 
-<nav class="tabs" id="mainTabs" style="display:none;">
-  <button data-tab="templates" class="active">양식 관리</button>
-  <button data-tab="records">작성 기록</button>
-</nav>
+<nav class="tabs" id="mainTabs" style="display:none;"></nav>
 
 <main id="mainArea" style="display:none;">
   <!-- 양식 관리 -->
@@ -251,10 +248,9 @@
   <!-- 작성 기록 -->
   <div class="view" id="view-records">
     <div class="section-head">
-      <div><h2>작성 기록</h2><span class="cnt" id="recCount"></span></div>
+      <div><h2 id="recViewTitle">작성 기록</h2><span class="cnt" id="recCount"></span></div>
       <button class="btn btn-primary" id="addRecBtn">+ 새 기록 등록</button>
     </div>
-    <div class="subtab-row" id="tplTabRow"></div>
     <div class="year-row" id="yearRow"></div>
     <div id="recordsHost"></div>
   </div>
@@ -413,7 +409,6 @@ async function getRecordYearFolder(templateId, year){
 
 let currentTab = 'templates';
 let currentYear = new Date().getFullYear();
-let currentTplFilter = 'all';
 
 function extractFolderId(input){
   const v = (input||'').trim();
@@ -661,35 +656,35 @@ $('refreshBtn').addEventListener('click', async ()=>{
 });
 
 /* ========================= 탭 전환 ========================= */
-function switchMainTab(tab){
-  document.querySelectorAll('#mainTabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
-  currentTab = tab;
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  $('view-' + tab).classList.add('active');
-}
-document.querySelectorAll('#mainTabs button').forEach(btn=>{
-  btn.addEventListener('click', ()=> switchMainTab(btn.dataset.tab));
-});
-window.goToRecordsTab = (tplId)=>{
-  currentTplFilter = tplId;
-  switchMainTab('records');
-  renderTplTabs(); renderYearRow(); renderRecords();
-};
-
-function renderAll(){ renderTemplates(); renderTplTabs(); renderYearRow(); renderRecords(); }
-
-function renderTplTabs(){
-  const host = $('tplTabRow');
-  const tabs = [{ id:'all', name:'전체' }, ...state.templates.map(t=>({ id:t.id, name:t.name }))];
-  if(!tabs.find(t=>t.id===currentTplFilter)) currentTplFilter = 'all';
-  host.innerHTML = tabs.map(t=>`<button class="subtab ${t.id===currentTplFilter?'active':''}" data-tpl="${t.id}">${escapeHtml(t.name)}</button>`).join('');
-  host.querySelectorAll('.subtab').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      currentTplFilter = b.dataset.tpl;
-      renderTplTabs(); renderYearRow(); renderRecords();
-    });
+function renderMainTabs(){
+  const nav = $('mainTabs');
+  const hasOrphan = state.records.some(r => !getTpl(r.templateId));
+  const tabs = [{ id:'templates', label:'양식 관리' }]
+    .concat(state.templates.map(t=>({ id:t.id, label:t.name })));
+  if(hasOrphan) tabs.push({ id:'orphan', label:'미분류 기록' });
+  if(!tabs.find(t=>t.id===currentTab)) currentTab = 'templates';
+  nav.innerHTML = tabs.map(t=>`<button data-tab="${t.id}" class="${currentTab===t.id?'active':''}">${t.id==='templates'?'':'📑 '}${escapeHtml(t.label)}</button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ currentTab = b.dataset.tab; renderMainTabs(); showActiveView(); });
   });
 }
+function showActiveView(){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  if(currentTab === 'templates'){
+    $('view-templates').classList.add('active');
+  } else {
+    $('view-records').classList.add('active');
+    const tpl = getTpl(currentTab);
+    $('recViewTitle').textContent = tpl ? tpl.name : '미분류 기록';
+    renderYearRow(); renderRecords();
+  }
+}
+window.goToRecordsTab = (tplId)=>{
+  currentTab = tplId;
+  renderMainTabs(); showActiveView();
+};
+
+function renderAll(){ renderTemplates(); renderMainTabs(); showActiveView(); }
 
 /* ========================= 양식 관리 ========================= */
 function renderTemplates(){
@@ -744,7 +739,7 @@ $('saveTplBtn').addEventListener('click', async ()=>{
     id: tplId, name, code, driveFolderId: folderId, createdAt: nowIso(),
     revisions: [{ rev:1, fileId, fileName:file.name, uploadedAt: nowIso(), note:'최초 등록' }]
   });
-  await saveMetadata(); renderTemplates(); renderTplTabs();
+  await saveMetadata(); renderTemplates(); renderMainTabs();
   toast('양식이 등록되었습니다');
 });
 
@@ -762,7 +757,8 @@ $('saveTplEditBtn').addEventListener('click', async ()=>{
   if(!name){ toast('양식명을 입력하세요'); return; }
   t.name = name; t.code = $('tplEditCode').value.trim();
   closeModal('modal-tpl-edit');
-  await saveMetadata(); renderTemplates(); renderTplTabs(); renderRecords();
+  await saveMetadata(); renderTemplates(); renderMainTabs();
+  if(currentTab !== 'templates') showActiveView();
   toast('양식 정보가 수정되었습니다');
 });
 async function downloadTemplate(tplId){
@@ -808,13 +804,18 @@ window.deleteTemplate = async (tplId)=>{
   for(const r of t.revisions){ await driveTrash(r.fileId); }
   await driveTrash(t.driveFolderId);
   state.templates = state.templates.filter(x=>x.id!==tplId);
-  await saveMetadata(); renderTemplates(); renderTplTabs(); renderRecords();
+  if(currentTab === tplId) currentTab = 'templates';
+  await saveMetadata(); renderTemplates(); renderMainTabs(); showActiveView();
   toast('삭제되었습니다');
 };
 
 /* ========================= 작성 기록 ========================= */
+function matchesCurrentTab(r){
+  if(currentTab === 'orphan') return !getTpl(r.templateId);
+  return r.templateId === currentTab;
+}
 function allYears(){
-  const relevant = state.records.filter(r=> currentTplFilter==='all' || r.templateId===currentTplFilter);
+  const relevant = state.records.filter(matchesCurrentTab);
   const ys = new Set(relevant.map(r=>r.year));
   ys.add(new Date().getFullYear());
   return [...ys].sort((a,b)=>b-a);
@@ -828,12 +829,10 @@ function renderYearRow(){
   });
 }
 function renderRecords(){
-  const filterAll = currentTplFilter === 'all';
   const recs = state.records
-    .filter(r=> r.year===currentYear && (filterAll || r.templateId===currentTplFilter))
+    .filter(r=> r.year===currentYear && matchesCurrentTab(r))
     .sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt));
-  const tplLabel = filterAll ? '전체 양식' : (getTpl(currentTplFilter)?.name || '');
-  $('recCount').textContent = `${tplLabel} · ${currentYear}년 · ${recs.length}건`;
+  $('recCount').textContent = `${currentYear}년 · ${recs.length}건`;
   const host = $('recordsHost');
   if(!recs.length){
     host.innerHTML = `<div class="empty">
@@ -842,16 +841,12 @@ function renderRecords(){
     </div>`;
     return;
   }
-  const tplTh = filterAll ? '<th>연결 양식</th>' : '';
   host.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>상태</th><th>제목</th>${tplTh}<th>등록일</th><th>작성 파일</th><th>서명본</th><th>관리</th></tr></thead>
+    <thead><tr><th>상태</th><th>제목</th><th>등록일</th><th>작성 파일</th><th>서명본</th><th>관리</th></tr></thead>
     <tbody>${recs.map(r=>{
-      const tpl = getTpl(r.templateId);
-      const tplTd = filterAll ? `<td class="rec-tpl">${tpl ? escapeHtml(tpl.name) : '<span style="color:var(--ink-faint)">(삭제된 양식)</span>'}</td>` : '';
       return `<tr>
         <td>${r.signedFileId ? '<span class="tag green">서명완료</span>' : '<span class="tag amber">서명대기</span>'}</td>
         <td><div class="rec-title">${escapeHtml(r.title)}</div>${r.memo?`<div class="rec-memo">${escapeHtml(r.memo)}</div>`:''}</td>
-        ${tplTd}
         <td class="rec-date">${fmtDate(r.createdAt)}</td>
         <td><button class="file-link" onclick="driveDownload('${r.fileId}','${escapeHtml(r.fileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(r.fileName))}</button></td>
         <td>${r.signedFileId
@@ -872,7 +867,7 @@ $('addRecBtn').addEventListener('click', ()=>{
   if(!state.templates.length){ toast('먼저 양식을 하나 이상 등록하세요'); return; }
   $('recYear').value = currentYear;
   $('recTpl').innerHTML = state.templates.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}${t.code?` (${escapeHtml(t.code)})`:''}</option>`).join('');
-  if(currentTplFilter !== 'all') $('recTpl').value = currentTplFilter;
+  if(getTpl(currentTab)) $('recTpl').value = currentTab;
   $('recTitle').value=''; $('recMemo').value=''; $('recFile').value=''; $('recSigned').value='';
   openModal('modal-rec');
 });
@@ -899,8 +894,8 @@ $('saveRecBtn').addEventListener('click', async ()=>{
     createdAt: nowIso()
   });
   currentYear = year;
-  currentTplFilter = templateId;
-  await saveMetadata(); renderTplTabs(); renderYearRow(); renderRecords();
+  currentTab = templateId;
+  await saveMetadata(); renderMainTabs(); showActiveView();
   toast('기록이 등록되었습니다');
 });
 
