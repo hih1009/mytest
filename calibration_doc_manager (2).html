@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -126,6 +127,13 @@
   .card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:8px;border-top:1px dashed var(--border);}
 
   /* ===== Year tabs ===== */
+  .subtab-row{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+  .subtab{
+    flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+    background:var(--surface-sunken);border:1px solid var(--border);
+    padding:7px 13px;border-radius:8px;white-space:nowrap;
+  }
+  .subtab.active{background:var(--primary-tint);border-color:var(--primary);color:var(--primary-dark);}
   .year-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
   .year-chip{
     font-family:var(--font-mono);font-size:13px;font-weight:600;
@@ -246,6 +254,7 @@
       <div><h2>작성 기록</h2><span class="cnt" id="recCount"></span></div>
       <button class="btn btn-primary" id="addRecBtn">+ 새 기록 등록</button>
     </div>
+    <div class="subtab-row" id="tplTabRow"></div>
     <div class="year-row" id="yearRow"></div>
     <div id="recordsHost"></div>
   </div>
@@ -274,6 +283,16 @@
         <b>파일을 그냥 더블클릭해서 열면(file://) Google 로그인이 동작하지 않습니다.</b> GitHub Pages 등으로 배포해서 사용하세요.<br>
         Drive API는 <code>drive.file</code> 범위만 사용하며, 이 앱이 만든 파일에만 접근합니다.
       </div>
+    </div>
+    <div class="field">
+      <label>저장 폴더 이름</label>
+      <input type="text" id="folderNameInput" placeholder="교정품질문서관리">
+      <div class="hint">Google Drive에 생성될 최상위 폴더명입니다.</div>
+    </div>
+    <div class="field">
+      <label>상위 폴더 (선택)</label>
+      <input type="text" id="parentFolderInput" placeholder="예: https://drive.google.com/drive/folders/xxxxx 또는 폴더 ID">
+      <div class="hint">특정 팀/공유 폴더 안에 저장하고 싶다면 그 폴더의 링크나 ID를 붙여넣으세요. 비워두면 내 드라이브 최상위에 생성됩니다. (앱이 접근하려면 해당 폴더가 이 계정과 공유되어 있어야 합니다.)</div>
     </div>
     <div class="modal-actions">
       <button class="btn" data-close>취소</button>
@@ -377,7 +396,8 @@
 <script>
 /* ========================= 상태/설정 ========================= */
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
-const ROOT_FOLDER_NAME = '교정품질문서관리';
+let ROOT_FOLDER_NAME = localStorage.getItem('cqm_folder_name') || '교정품질문서관리';
+let PARENT_FOLDER_ID = localStorage.getItem('cqm_parent_folder_id') || '';
 let CLIENT_ID = localStorage.getItem('cqm_client_id') || '';
 let tokenClient = null;
 let accessToken = null;
@@ -385,8 +405,22 @@ let tokenExpiryMs = 0;
 
 let rootFolderId = null, templatesFolderId = null, recordsFolderId = null, metadataFileId = null;
 let state = { templates: [], records: [] };
+async function getRecordYearFolder(templateId, year){
+  const tpl = getTpl(templateId);
+  const parent = tpl ? tpl.driveFolderId : recordsFolderId;
+  return ensureFolder(String(year), parent);
+}
+
 let currentTab = 'templates';
 let currentYear = new Date().getFullYear();
+let currentTplFilter = 'all';
+
+function extractFolderId(input){
+  const v = (input||'').trim();
+  if(!v) return '';
+  const m = v.match(/folders\/([a-zA-Z0-9_-]+)/) || v.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : v;
+}
 
 const $ = (id) => document.getElementById(id);
 const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
@@ -416,15 +450,29 @@ document.querySelectorAll('.overlay').forEach(ov=>{
 /* ========================= 설정 ========================= */
 $('settingsBtn').addEventListener('click', ()=>{
   $('clientIdInput').value = CLIENT_ID;
+  $('folderNameInput').value = ROOT_FOLDER_NAME;
+  $('parentFolderInput').value = PARENT_FOLDER_ID;
   openModal('modal-settings');
 });
-$('saveClientIdBtn').addEventListener('click', ()=>{
+$('saveClientIdBtn').addEventListener('click', async ()=>{
   const v = $('clientIdInput').value.trim();
   if(!v){ toast('클라이언트 ID를 입력하세요'); return; }
+  const newFolderName = $('folderNameInput').value.trim() || '교정품질문서관리';
+  const newParentId = extractFolderId($('parentFolderInput').value);
+  const changedLocation = (newFolderName !== ROOT_FOLDER_NAME) || (newParentId !== PARENT_FOLDER_ID);
   CLIENT_ID = v; localStorage.setItem('cqm_client_id', v);
+  ROOT_FOLDER_NAME = newFolderName; localStorage.setItem('cqm_folder_name', newFolderName);
+  PARENT_FOLDER_ID = newParentId; localStorage.setItem('cqm_parent_folder_id', newParentId);
   closeModal('modal-settings');
   initAuth();
-  toast('저장되었습니다. 로그인해 주세요.');
+  if(accessToken && changedLocation){
+    toast('저장 위치를 다시 연결합니다...');
+    await bootstrap();
+  } else if(!accessToken){
+    toast('저장되었습니다. 로그인해 주세요.');
+  } else {
+    toast('저장되었습니다.');
+  }
 });
 
 /* ========================= Google 인증 ========================= */
@@ -567,7 +615,7 @@ async function driveTrash(fileId){
 async function bootstrap(){
   setSync('busy', '연결 중...');
   try{
-    rootFolderId = await ensureFolder(ROOT_FOLDER_NAME, null);
+    rootFolderId = await ensureFolder(ROOT_FOLDER_NAME, PARENT_FOLDER_ID || null);
     templatesFolderId = await ensureFolder('templates', rootFolderId);
     recordsFolderId = await ensureFolder('records', rootFolderId);
     let metaId = await findFileInFolder('metadata.json', rootFolderId);
@@ -613,17 +661,35 @@ $('refreshBtn').addEventListener('click', async ()=>{
 });
 
 /* ========================= 탭 전환 ========================= */
+function switchMainTab(tab){
+  document.querySelectorAll('#mainTabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  currentTab = tab;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('view-' + tab).classList.add('active');
+}
 document.querySelectorAll('#mainTabs button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('#mainTabs button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    currentTab = btn.dataset.tab;
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    $('view-' + currentTab).classList.add('active');
-  });
+  btn.addEventListener('click', ()=> switchMainTab(btn.dataset.tab));
 });
+window.goToRecordsTab = (tplId)=>{
+  currentTplFilter = tplId;
+  switchMainTab('records');
+  renderTplTabs(); renderYearRow(); renderRecords();
+};
 
-function renderAll(){ renderTemplates(); renderYearRow(); renderRecords(); }
+function renderAll(){ renderTemplates(); renderTplTabs(); renderYearRow(); renderRecords(); }
+
+function renderTplTabs(){
+  const host = $('tplTabRow');
+  const tabs = [{ id:'all', name:'전체' }, ...state.templates.map(t=>({ id:t.id, name:t.name }))];
+  if(!tabs.find(t=>t.id===currentTplFilter)) currentTplFilter = 'all';
+  host.innerHTML = tabs.map(t=>`<button class="subtab ${t.id===currentTplFilter?'active':''}" data-tpl="${t.id}">${escapeHtml(t.name)}</button>`).join('');
+  host.querySelectorAll('.subtab').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      currentTplFilter = b.dataset.tpl;
+      renderTplTabs(); renderYearRow(); renderRecords();
+    });
+  });
+}
 
 /* ========================= 양식 관리 ========================= */
 function renderTemplates(){
@@ -647,6 +713,7 @@ function renderTemplates(){
         <td><button class="file-link" onclick="downloadTemplate('${t.id}')">⬇ ${escapeHtml(shortName(latest.fileName))}</button></td>
         <td class="rec-date">${fmtDate(latest.uploadedAt)}</td>
         <td class="actions-cell">
+          <button class="btn btn-sm" onclick="goToRecordsTab('${t.id}')" title="이 양식의 작성 기록으로 이동">📑 작성 기록</button>
           <button class="btn btn-sm" onclick="openTplEdit('${t.id}')">문구 수정</button>
           <button class="btn btn-sm" onclick="openRevModal('${t.id}')">+ 수정본</button>
           <button class="btn btn-sm" onclick="openHistory('${t.id}')">이력 (${t.revisions.length})</button>
@@ -677,7 +744,7 @@ $('saveTplBtn').addEventListener('click', async ()=>{
     id: tplId, name, code, driveFolderId: folderId, createdAt: nowIso(),
     revisions: [{ rev:1, fileId, fileName:file.name, uploadedAt: nowIso(), note:'최초 등록' }]
   });
-  await saveMetadata(); renderTemplates();
+  await saveMetadata(); renderTemplates(); renderTplTabs();
   toast('양식이 등록되었습니다');
 });
 
@@ -695,7 +762,7 @@ $('saveTplEditBtn').addEventListener('click', async ()=>{
   if(!name){ toast('양식명을 입력하세요'); return; }
   t.name = name; t.code = $('tplEditCode').value.trim();
   closeModal('modal-tpl-edit');
-  await saveMetadata(); renderTemplates(); renderRecords();
+  await saveMetadata(); renderTemplates(); renderTplTabs(); renderRecords();
   toast('양식 정보가 수정되었습니다');
 });
 async function downloadTemplate(tplId){
@@ -741,13 +808,14 @@ window.deleteTemplate = async (tplId)=>{
   for(const r of t.revisions){ await driveTrash(r.fileId); }
   await driveTrash(t.driveFolderId);
   state.templates = state.templates.filter(x=>x.id!==tplId);
-  await saveMetadata(); renderTemplates(); renderRecords();
+  await saveMetadata(); renderTemplates(); renderTplTabs(); renderRecords();
   toast('삭제되었습니다');
 };
 
 /* ========================= 작성 기록 ========================= */
 function allYears(){
-  const ys = new Set(state.records.map(r=>r.year));
+  const relevant = state.records.filter(r=> currentTplFilter==='all' || r.templateId===currentTplFilter);
+  const ys = new Set(relevant.map(r=>r.year));
   ys.add(new Date().getFullYear());
   return [...ys].sort((a,b)=>b-a);
 }
@@ -760,8 +828,12 @@ function renderYearRow(){
   });
 }
 function renderRecords(){
-  const recs = state.records.filter(r=>r.year===currentYear).sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt));
-  $('recCount').textContent = `${currentYear}년 · ${recs.length}건`;
+  const filterAll = currentTplFilter === 'all';
+  const recs = state.records
+    .filter(r=> r.year===currentYear && (filterAll || r.templateId===currentTplFilter))
+    .sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt));
+  const tplLabel = filterAll ? '전체 양식' : (getTpl(currentTplFilter)?.name || '');
+  $('recCount').textContent = `${tplLabel} · ${currentYear}년 · ${recs.length}건`;
   const host = $('recordsHost');
   if(!recs.length){
     host.innerHTML = `<div class="empty">
@@ -770,14 +842,16 @@ function renderRecords(){
     </div>`;
     return;
   }
+  const tplTh = filterAll ? '<th>연결 양식</th>' : '';
   host.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>상태</th><th>제목</th><th>연결 양식</th><th>등록일</th><th>작성 파일</th><th>서명본</th><th>관리</th></tr></thead>
+    <thead><tr><th>상태</th><th>제목</th>${tplTh}<th>등록일</th><th>작성 파일</th><th>서명본</th><th>관리</th></tr></thead>
     <tbody>${recs.map(r=>{
       const tpl = getTpl(r.templateId);
+      const tplTd = filterAll ? `<td class="rec-tpl">${tpl ? escapeHtml(tpl.name) : '<span style="color:var(--ink-faint)">(삭제된 양식)</span>'}</td>` : '';
       return `<tr>
         <td>${r.signedFileId ? '<span class="tag green">서명완료</span>' : '<span class="tag amber">서명대기</span>'}</td>
         <td><div class="rec-title">${escapeHtml(r.title)}</div>${r.memo?`<div class="rec-memo">${escapeHtml(r.memo)}</div>`:''}</td>
-        <td class="rec-tpl">${tpl ? escapeHtml(tpl.name) : '<span style="color:var(--ink-faint)">(삭제된 양식)</span>'}</td>
+        ${tplTd}
         <td class="rec-date">${fmtDate(r.createdAt)}</td>
         <td><button class="file-link" onclick="driveDownload('${r.fileId}','${escapeHtml(r.fileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(r.fileName))}</button></td>
         <td>${r.signedFileId
@@ -798,6 +872,7 @@ $('addRecBtn').addEventListener('click', ()=>{
   if(!state.templates.length){ toast('먼저 양식을 하나 이상 등록하세요'); return; }
   $('recYear').value = currentYear;
   $('recTpl').innerHTML = state.templates.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}${t.code?` (${escapeHtml(t.code)})`:''}</option>`).join('');
+  if(currentTplFilter !== 'all') $('recTpl').value = currentTplFilter;
   $('recTitle').value=''; $('recMemo').value=''; $('recFile').value=''; $('recSigned').value='';
   openModal('modal-rec');
 });
@@ -810,7 +885,7 @@ $('saveRecBtn').addEventListener('click', async ()=>{
   const signed = $('recSigned').files[0];
   if(!title || !file){ toast('제목과 작성 파일을 입력하세요'); return; }
   closeModal('modal-rec'); setSync('busy','업로드 중...');
-  const yearFolderId = await ensureFolder(String(year), recordsFolderId);
+  const yearFolderId = await getRecordYearFolder(templateId, year);
   const fileId = await driveCreateFile(`${title}_원본_${file.name}`, yearFolderId, file.type, file);
   let signedFileId = null, signedFileName = null;
   if(signed){
@@ -824,7 +899,8 @@ $('saveRecBtn').addEventListener('click', async ()=>{
     createdAt: nowIso()
   });
   currentYear = year;
-  await saveMetadata(); renderYearRow(); renderRecords();
+  currentTplFilter = templateId;
+  await saveMetadata(); renderTplTabs(); renderYearRow(); renderRecords();
   toast('기록이 등록되었습니다');
 });
 
@@ -840,7 +916,7 @@ $('saveSignedBtn').addEventListener('click', async ()=>{
   const file = $('signedFile').files[0];
   if(!file){ toast('PDF 파일을 선택하세요'); return; }
   closeModal('modal-signed'); setSync('busy','업로드 중...');
-  const yearFolderId = await ensureFolder(String(r.year), recordsFolderId);
+  const yearFolderId = await getRecordYearFolder(r.templateId, r.year);
   if(r.signedFileId) await driveTrash(r.signedFileId);
   const fileId = await driveCreateFile(`${r.title}_서명본_${file.name}`, yearFolderId, file.type || 'application/pdf', file);
   r.signedFileId = fileId; r.signedFileName = file.name;
