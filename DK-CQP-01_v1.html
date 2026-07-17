@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교정품질문서관리 · Calibration QMS Registry</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF1F0;
+    --surface:#FFFFFF;
+    --surface-sunken:#F5F7F6;
+    --ink:#182226;
+    --ink-soft:#5B6B70;
+    --ink-faint:#93A2A6;
+    --border:#DCE3E1;
+    --border-strong:#C3CDCB;
+    --primary:#1F6F6B;
+    --primary-dark:#134E4B;
+    --primary-tint:#E4F0EF;
+    --amber:#B9791E;
+    --amber-tint:#FBF0DE;
+    --green:#3D7A55;
+    --green-tint:#E7F2EA;
+    --red:#B33F3F;
+    --red-tint:#FBEAEA;
+    --font-sans:'Noto Sans KR','Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(24,34,38,.04),0 4px 14px rgba(24,34,38,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);}
+  ::selection{background:var(--primary-tint);}
+
+  /* ===== Header ===== */
+  header.app-header{
+    position:sticky;top:0;z-index:40;
+    background:var(--surface);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:16px;
+    padding:14px 24px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;margin-right:auto;}
+  .brand-seal{
+    width:34px;height:34px;border-radius:50%;
+    background:conic-gradient(from 220deg,var(--primary),var(--primary-dark));
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.02em;
+    box-shadow:inset 0 0 0 3px rgba(255,255,255,.18);
+  }
+  .brand-text h1{font-size:15px;margin:0;font-weight:700;letter-spacing:-.01em;}
+  .brand-text p{margin:0;font-size:11px;color:var(--ink-faint);font-family:var(--font-mono);letter-spacing:.03em;}
+  .sync-pill{
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);
+    background:var(--surface-sunken);border:1px solid var(--border);
+    padding:5px 10px;border-radius:20px;
+  }
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);}
+  .sync-dot.on{background:var(--green);}
+  .sync-dot.busy{background:var(--amber);animation:pulse 1.1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  button{font-family:inherit;cursor:pointer;}
+  .btn{
+    border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);
+    padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;
+    display:inline-flex;align-items:center;gap:6px;transition:.15s;
+  }
+  .btn:hover{border-color:var(--primary);color:var(--primary-dark);}
+  .btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark);color:#fff;}
+  .btn-ghost{border-color:transparent;background:transparent;color:var(--ink-soft);}
+  .btn-ghost:hover{background:var(--surface-sunken);color:var(--ink);}
+  .btn-danger{color:var(--red);}
+  .btn-danger:hover{background:var(--red-tint);border-color:var(--red);}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:6px;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ===== Tabs ===== */
+  nav.tabs{
+    display:flex;gap:2px;padding:0 24px;background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  nav.tabs button{
+    background:none;border:none;padding:13px 4px;margin-right:22px;
+    font-size:14px;font-weight:600;color:var(--ink-faint);border-bottom:2px solid transparent;
+  }
+  nav.tabs button.active{color:var(--primary-dark);border-bottom-color:var(--primary);}
+
+  main{max-width:1080px;margin:0 auto;padding:28px 24px 80px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+  .section-head h2{font-size:17px;margin:0 0 2px;}
+  .section-head .cnt{font-family:var(--font-mono);font-size:12px;color:var(--ink-faint);}
+
+  /* ===== Tag / seal chip (signature element) ===== */
+  .tag{
+    display:inline-flex;align-items:center;gap:4px;
+    font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.02em;
+    color:#fff;background:var(--primary);
+    padding:3px 10px 3px 13px;
+    clip-path:polygon(7px 0,100% 0,100% 100%,7px 100%,0 50%);
+  }
+  .tag.amber{background:var(--amber);}
+  .tag.green{background:var(--green);}
+  .tag.muted{background:var(--ink-faint);}
+  .tag.outline{background:var(--surface);color:var(--ink-soft);box-shadow:inset 0 0 0 1px var(--border-strong);}
+
+  /* ===== Template cards ===== */
+  .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 16px 14px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .card-top h3{margin:0;font-size:14.5px;line-height:1.35;}
+  .card-code{font-family:var(--font-mono);font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .card-meta{font-size:12px;color:var(--ink-soft);display:flex;flex-direction:column;gap:2px;}
+  .card-meta .fn{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);word-break:break-all;}
+  .card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:8px;border-top:1px dashed var(--border);}
+
+  /* ===== Year tabs ===== */
+  .subtab-row{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+  .subtab{
+    flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--ink-soft);
+    background:var(--surface-sunken);border:1px solid var(--border);
+    padding:7px 13px;border-radius:8px;white-space:nowrap;
+  }
+  .subtab.active{background:var(--primary-tint);border-color:var(--primary);color:var(--primary-dark);}
+  .year-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .year-chip{
+    font-family:var(--font-mono);font-size:13px;font-weight:600;
+    padding:6px 14px;border-radius:20px;border:1px solid var(--border-strong);
+    background:var(--surface);color:var(--ink-soft);
+  }
+  .year-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+  /* ===== Records table ===== */
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--ink-faint);font-weight:600;padding:10px 14px;background:var(--surface-sunken);
+    border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-sunken);}
+  .rec-title{font-weight:600;}
+  .rec-memo{font-size:12px;color:var(--ink-faint);margin-top:2px;}
+  .rec-tpl{font-size:12px;color:var(--ink-soft);}
+  .rec-date{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);}
+  .file-link{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--primary-dark);text-decoration:none;background:none;border:none;padding:0;font-family:inherit;}
+  .file-link:hover{text-decoration:underline;}
+  .actions-cell{display:flex;gap:6px;flex-wrap:wrap;}
+
+  /* ===== Empty state ===== */
+  .empty{
+    text-align:center;padding:48px 20px;border:1px dashed var(--border-strong);
+    border-radius:var(--radius);background:var(--surface);color:var(--ink-soft);
+  }
+  .empty h3{margin:0 0 6px;font-size:14px;color:var(--ink);}
+  .empty p{margin:0 0 16px;font-size:13px;}
+
+  /* ===== Gate (login) ===== */
+  .gate{max-width:440px;margin:80px auto;text-align:center;}
+  .gate .brand-seal{width:52px;height:52px;font-size:13px;margin:0 auto 18px;}
+  .gate h2{font-size:19px;margin:0 0 8px;}
+  .gate p{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0 0 22px;}
+
+  /* ===== Modal ===== */
+  .overlay{position:fixed;inset:0;background:rgba(24,34,38,.45);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:60px 16px;overflow:auto;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--surface);border-radius:12px;width:100%;max-width:480px;padding:22px 24px 24px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .modal h3{margin:0 0 4px;font-size:16px;}
+  .modal .sub{font-size:12.5px;color:var(--ink-faint);margin:0 0 18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  .field .hint{font-size:11.5px;color:var(--ink-faint);margin-top:4px;}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:9px 11px;border:1px solid var(--border-strong);border-radius:7px;
+    font-size:13.5px;font-family:inherit;background:var(--surface);color:var(--ink);
+  }
+  textarea{resize:vertical;min-height:56px;}
+  input[type=file]{width:100%;font-size:12.5px;}
+  .dropzone{
+    position:relative;border:1.5px dashed var(--border-strong);border-radius:8px;
+    padding:16px 12px;text-align:center;background:var(--surface-sunken);transition:.15s;
+  }
+  .dropzone.drag{border-color:var(--primary);background:var(--primary-tint);}
+  .dropzone input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;}
+  .dz-hint{font-size:12px;color:var(--ink-soft);pointer-events:none;}
+  .dz-hint b{color:var(--primary-dark);}
+  .dz-filename{font-size:12.5px;color:var(--primary-dark);font-weight:600;margin-top:5px;pointer-events:none;word-break:break-all;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
+  .modal-close{float:right;background:none;border:none;color:var(--ink-faint);font-size:18px;line-height:1;}
+
+  .history-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;}
+  .history-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;}
+  .history-item .fn{flex:1;font-size:12.5px;}
+  .history-item .fn .note{color:var(--ink-faint);font-size:11.5px;margin-top:2px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;
+    z-index:200;opacity:0;pointer-events:none;transition:.25s;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,-6px);}
+
+  @media(max-width:640px){
+    header.app-header{padding:12px 14px;flex-wrap:wrap;}
+    main{padding:20px 14px 60px;}
+    .table-wrap{overflow-x:auto;}
+    table{min-width:640px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-seal">QMS</div>
+    <div class="brand-text">
+      <h1>교정품질문서관리</h1>
+      <p id="userLine">CALIBRATION DOCUMENT REGISTRY</p>
+    </div>
+  </div>
+  <div class="sync-pill" id="syncPill"><span class="sync-dot" id="syncDot"></span><span id="syncText">연결 안됨</span></div>
+  <button class="btn btn-ghost btn-sm" id="refreshBtn" title="Drive에서 새로고침" style="display:none;">↻ 새로고침</button>
+  <button class="btn btn-ghost btn-sm" id="settingsBtn">설정</button>
+  <button class="btn btn-primary btn-sm" id="signInBtn">Google 로그인</button>
+  <button class="btn btn-ghost btn-sm" id="signOutBtn" style="display:none;">로그아웃</button>
+</header>
+
+<nav class="tabs" id="mainTabs" style="display:none;"></nav>
+
+<main id="mainArea" style="display:none;">
+  <!-- 양식 관리 -->
+  <div class="view active" id="view-templates">
+    <div class="section-head">
+      <div>
+        <h2>등록 양식</h2>
+        <span class="cnt" id="tplCount">0/10</span>
+      </div>
+      <button class="btn btn-primary" id="addTplBtn">+ 새 양식 등록</button>
+    </div>
+    <div id="tplGrid"></div>
+  </div>
+
+  <!-- 작성 기록 -->
+  <div class="view" id="view-records">
+    <div class="section-head">
+      <div><h2 id="recViewTitle">작성 기록</h2><span class="cnt" id="recCount"></span></div>
+      <button class="btn btn-primary" id="addRecBtn">+ 새 기록 등록</button>
+    </div>
+    <div class="year-row" id="yearRow"></div>
+    <div id="recordsHost"></div>
+  </div>
+</main>
+
+<div class="gate" id="gate">
+  <div class="brand-seal">QMS</div>
+  <h2>교정품질문서관리</h2>
+  <p>국가공인교정기관 품질문서 양식과 작성기록을 연도별로 등록·관리합니다.<br>Google Drive에 연결하여 시작하세요.</p>
+  <button class="btn btn-primary" id="gateSignInBtn">Google 계정으로 시작</button>
+  <p class="hint" style="margin-top:14px;font-size:11.5px;">최초 사용 시 [설정]에서 Google OAuth 클라이언트 ID를 먼저 등록해야 합니다.</p>
+</div>
+
+<!-- 설정 모달 -->
+<div class="overlay" id="modal-settings">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>설정</h3>
+    <p class="sub">Google Cloud Console에서 발급받은 OAuth 2.0 클라이언트 ID를 입력하세요.</p>
+    <div class="field">
+      <label>Google OAuth 클라이언트 ID</label>
+      <input type="text" id="clientIdInput" placeholder="xxxxxxxxxx.apps.googleusercontent.com">
+      <div class="hint">
+        Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션)에서 발급받고,<br>
+        이 파일을 실제로 호스팅할 주소(예: https://본인계정.github.io)를 "승인된 자바스크립트 원본"에 등록해야 합니다.<br>
+        <b>파일을 그냥 더블클릭해서 열면(file://) Google 로그인이 동작하지 않습니다.</b> GitHub Pages 등으로 배포해서 사용하세요.<br>
+        Drive API는 <code>drive.file</code> 범위만 사용하며, 이 앱이 만든 파일에만 접근합니다.
+      </div>
+    </div>
+    <div class="field">
+      <label>저장 폴더 이름</label>
+      <input type="text" id="folderNameInput" placeholder="교정품질문서관리">
+      <div class="hint">Google Drive에 생성될 최상위 폴더명입니다.</div>
+    </div>
+    <div class="field">
+      <label>상위 폴더 (선택)</label>
+      <input type="text" id="parentFolderInput" placeholder="예: https://drive.google.com/drive/folders/xxxxx 또는 폴더 ID">
+      <div class="hint">특정 팀/공유 폴더 안에 저장하고 싶다면 그 폴더의 링크나 ID를 붙여넣으세요. 비워두면 내 드라이브 최상위에 생성됩니다. (앱이 접근하려면 해당 폴더가 이 계정과 공유되어 있어야 합니다.)</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveClientIdBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 양식 등록 모달 -->
+<div class="overlay" id="modal-tpl">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>새 양식 등록</h3>
+    <p class="sub">품질문서 양식 파일을 최초(REV.00)로 등록합니다.</p>
+    <div class="field"><label>양식명 *</label><input type="text" id="tplName" placeholder="예: 교정성적서 양식"></div>
+    <div class="field"><label>문서번호</label><input type="text" id="tplCode" placeholder="예: QF-07 (선택)"></div>
+    <div class="field"><label>등록 날짜</label><input type="date" id="tplDate"></div>
+    <div class="field"><label>양식 파일 * <span style="font-weight:400;color:var(--ink-faint);">(여러 개 첨부 가능)</span></label>
+      <div class="dropzone"><input type="file" id="tplFile" multiple>
+        <div class="dz-hint"><b>클릭</b>하여 선택하거나 파일을 끌어다 놓으세요 · 여러 파일 동시 선택 가능</div>
+        <div class="dz-filename" id="tplFile-name"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveTplBtn">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 양식 정보 수정 모달 -->
+<div class="overlay" id="modal-tpl-edit">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>양식 정보 수정</h3>
+    <p class="sub">파일은 그대로 두고 양식명/문서번호 문구만 변경합니다.</p>
+    <div class="field"><label>양식명 *</label><input type="text" id="tplEditName"></div>
+    <div class="field"><label>문서번호</label><input type="text" id="tplEditCode" placeholder="선택"></div>
+    <div class="field"><label>최초 등록일</label><input type="date" id="tplEditDate">
+      <div class="hint">REV.00 등록일과 저장 파일명이 이 날짜로 함께 갱신됩니다.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveTplEditBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 수정본 등록 모달 -->
+<div class="overlay" id="modal-rev">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>수정본 등록</h3>
+    <p class="sub" id="revSub"></p>
+    <div class="field"><label>새 버전 파일 * <span style="font-weight:400;color:var(--ink-faint);">(여러 개 첨부 가능)</span></label>
+      <div class="dropzone"><input type="file" id="revFile" multiple>
+        <div class="dz-hint"><b>클릭</b>하여 선택하거나 파일을 끌어다 놓으세요 · 여러 파일 동시 선택 가능</div>
+        <div class="dz-filename" id="revFile-name"></div>
+      </div>
+    </div>
+    <div class="field"><label>개정 사유</label><textarea id="revNote" placeholder="변경 내용 / 개정 사유 (선택)"></textarea></div>
+    <div class="field"><label>등록 날짜</label><input type="date" id="revDate"></div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveRevBtn">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이력 모달 -->
+<div class="overlay" id="modal-history">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3 id="histTitle">개정 이력</h3>
+    <p class="sub">최신 버전이 상단에 표시됩니다.</p>
+    <div class="history-list" id="historyList"></div>
+    <div class="modal-actions"><button class="btn" data-close>닫기</button></div>
+  </div>
+</div>
+
+<!-- 기록 등록 모달 -->
+<div class="overlay" id="modal-rec">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>새 작성 기록 등록</h3>
+    <p class="sub">양식을 작성한 파일을 연도별로 등록합니다.</p>
+    <div class="field"><label>연도 *</label><input type="number" id="recYear"></div>
+    <div class="field"><label>연결 양식 *</label><select id="recTpl"></select></div>
+    <div class="field"><label>제목 *</label><input type="text" id="recTitle" placeholder="예: OO장비 교정성적서 2026-001"></div>
+    <div class="field"><label>비고</label><textarea id="recMemo" placeholder="고객명 / 장비명 / 특이사항 (선택)"></textarea></div>
+    <div class="field"><label>작성 파일 * <span style="font-weight:400;color:var(--ink-faint);">(여러 개 첨부 가능)</span></label>
+      <div class="dropzone"><input type="file" id="recFile" multiple>
+        <div class="dz-hint"><b>클릭</b>하여 선택하거나 파일을 끌어다 놓으세요 · 여러 파일 동시 선택 가능</div>
+        <div class="dz-filename" id="recFile-name"></div>
+      </div>
+    </div>
+    <div class="field"><label>상부 서명본 PDF</label>
+      <div class="dropzone"><input type="file" id="recSigned" accept="application/pdf">
+        <div class="dz-hint"><b>클릭</b>하여 선택하거나 PDF를 끌어다 놓으세요</div>
+        <div class="dz-filename" id="recSigned-name"></div>
+      </div>
+      <div class="hint">지금 없으면 비워두고, 목록에서 나중에 등록할 수 있습니다.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveRecBtn">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 작성 파일 추가 모달 -->
+<div class="overlay" id="modal-addfile">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>작성 파일 추가</h3>
+    <p class="sub" id="addfileSub"></p>
+    <div class="field"><label>추가할 파일 * <span style="font-weight:400;color:var(--ink-faint);">(여러 개 가능)</span></label>
+      <div class="dropzone"><input type="file" id="addFile" multiple>
+        <div class="dz-hint"><b>클릭</b>하여 선택하거나 파일을 끌어다 놓으세요</div>
+        <div class="dz-filename" id="addFile-name"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveAddFileBtn">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 서명본 등록 모달 -->
+<div class="overlay" id="modal-signed">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h3>상부 서명본 등록</h3>
+    <p class="sub" id="signedSub"></p>
+    <div class="field"><label>서명 완료 PDF *</label>
+      <div class="dropzone"><input type="file" id="signedFile" accept="application/pdf">
+        <div class="dz-hint"><b>클릭</b>하여 선택하거나 PDF를 끌어다 놓으세요</div>
+        <div class="dz-filename" id="signedFile-name"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" data-close>취소</button>
+      <button class="btn btn-primary" id="saveSignedBtn">등록</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========================= 상태/설정 ========================= */
+const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+let ROOT_FOLDER_NAME = localStorage.getItem('cqm_folder_name') || '교정품질문서관리';
+let PARENT_FOLDER_ID = localStorage.getItem('cqm_parent_folder_id') || '';
+let CLIENT_ID = localStorage.getItem('cqm_client_id') || '';
+let tokenClient = null;
+let accessToken = null;
+let tokenExpiryMs = 0;
+
+let rootFolderId = null, templatesFolderId = null, recordsFolderId = null, metadataFileId = null;
+let state = { templates: [], records: [] };
+async function getRecordYearFolder(templateId, year){
+  const tpl = getTpl(templateId);
+  const parent = tpl ? tpl.driveFolderId : recordsFolderId;
+  return ensureFolder(String(year), parent);
+}
+
+let currentTab = 'templates';
+let currentYear = new Date().getFullYear();
+
+function extractFolderId(input){
+  const v = (input||'').trim();
+  if(!v) return '';
+  const m = v.match(/folders\/([a-zA-Z0-9_-]+)/) || v.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : v;
+}
+
+const $ = (id) => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+const nowIso = () => new Date().toISOString();
+const fmtDate = (iso) => { if(!iso) return '-'; const d=new Date(iso); return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0'); };
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._h); toast._h = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function setSync(mode, text){
+  const dot = $('syncDot');
+  dot.className = 'sync-dot' + (mode==='on' ? ' on' : mode==='busy' ? ' busy' : '');
+  $('syncText').textContent = text;
+}
+
+/* ========================= 드래그앤드롭 파일 선택 ========================= */
+function setupDropzone(inputId){
+  const input = $(inputId);
+  if(!input) return;
+  const zone = input.closest('.dropzone');
+  const nameEl = $(inputId + '-name');
+  const updateName = ()=>{
+    if(!nameEl) return;
+    const files = input.files;
+    if(!files || !files.length){ nameEl.textContent=''; return; }
+    if(files.length === 1){ nameEl.textContent = '선택됨: ' + files[0].name; }
+    else { nameEl.textContent = `선택됨 (${files.length}개): ` + Array.from(files).map(f=>f.name).join(', '); }
+  };
+  input.addEventListener('change', updateName);
+  ['dragenter','dragover'].forEach(evt=>{
+    zone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); zone.classList.add('drag'); });
+  });
+  ['dragleave','dragend'].forEach(evt=>{
+    zone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag'); });
+  });
+  zone.addEventListener('drop', (e)=>{
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag');
+    const dt = e.dataTransfer;
+    if(dt && dt.files && dt.files.length){
+      input.files = dt.files;
+      updateName();
+    }
+  });
+}
+['tplFile','revFile','recFile','recSigned','signedFile','addFile'].forEach(setupDropzone);
+
+/* ========================= 모달 유틸 ========================= */
+function openModal(id){ $(id).classList.add('show'); }
+function closeModal(id){ $(id).classList.remove('show'); }
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', (e)=> closeModal(e.target.closest('.overlay').id));
+});
+/* 오버레이(바깥 영역) 클릭으로는 닫히지 않도록 함 - 입력 중 실수로 창이 사라지는 문제 방지.
+   닫기는 우측 상단 × 버튼이나 '취소' 버튼으로만 가능합니다. */
+
+/* ========================= 설정 ========================= */
+$('settingsBtn').addEventListener('click', ()=>{
+  $('clientIdInput').value = CLIENT_ID;
+  $('folderNameInput').value = ROOT_FOLDER_NAME;
+  $('parentFolderInput').value = PARENT_FOLDER_ID;
+  openModal('modal-settings');
+});
+$('saveClientIdBtn').addEventListener('click', async ()=>{
+  const v = $('clientIdInput').value.trim();
+  if(!v){ toast('클라이언트 ID를 입력하세요'); return; }
+  const newFolderName = $('folderNameInput').value.trim() || '교정품질문서관리';
+  const newParentId = extractFolderId($('parentFolderInput').value);
+  const changedLocation = (newFolderName !== ROOT_FOLDER_NAME) || (newParentId !== PARENT_FOLDER_ID);
+  CLIENT_ID = v; localStorage.setItem('cqm_client_id', v);
+  ROOT_FOLDER_NAME = newFolderName; localStorage.setItem('cqm_folder_name', newFolderName);
+  PARENT_FOLDER_ID = newParentId; localStorage.setItem('cqm_parent_folder_id', newParentId);
+  closeModal('modal-settings');
+  initAuth();
+  if(accessToken && changedLocation){
+    toast('저장 위치를 다시 연결합니다...');
+    await bootstrap();
+  } else if(!accessToken){
+    toast('저장되었습니다. 로그인해 주세요.');
+  } else {
+    toast('저장되었습니다.');
+  }
+});
+
+/* ========================= Google 인증 ========================= */
+function initAuth(){
+  if(!CLIENT_ID || !window.google || !google.accounts){ return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPE,
+    callback: onTokenResponse
+  });
+}
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    initAuth();
+    if(CLIENT_ID){ trySilentSignIn(); }
+  }, 300);
+});
+function trySilentSignIn(){
+  if(!tokenClient) return;
+  try{ tokenClient.requestAccessToken({ prompt: '' }); }catch(e){ /* 사용자 로그인 필요 */ }
+}
+function signIn(){
+  if(!CLIENT_ID){ toast('먼저 [설정]에서 클라이언트 ID를 등록하세요'); openModal('modal-settings'); return; }
+  if(!tokenClient) initAuth();
+  tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+$('signInBtn').addEventListener('click', signIn);
+$('gateSignInBtn').addEventListener('click', signIn);
+$('signOutBtn').addEventListener('click', ()=>{
+  if(accessToken){ google.accounts.oauth2.revoke(accessToken, ()=>{}); }
+  accessToken = null; tokenExpiryMs = 0;
+  location.reload();
+});
+
+async function onTokenResponse(resp){
+  if(resp.error){ setSync('off','로그인 필요'); return; }
+  accessToken = resp.access_token;
+  tokenExpiryMs = Date.now() + (resp.expires_in||3500)*1000;
+  $('signInBtn').style.display='none';
+  $('signOutBtn').style.display='inline-flex';
+  $('refreshBtn').style.display='inline-flex';
+  $('gate').style.display='none';
+  $('mainTabs').style.display='flex';
+  $('mainArea').style.display='block';
+  $('userLine').textContent = 'CALIBRATION DOCUMENT REGISTRY · 연결됨';
+  await bootstrap();
+}
+
+async function ensureFreshToken(){
+  if(accessToken && Date.now() < tokenExpiryMs - 60000) return true;
+  return new Promise((resolve)=>{
+    if(!tokenClient){ resolve(false); return; }
+    const prevCb = tokenClient.callback;
+    tokenClient.callback = (resp)=>{ tokenClient.callback = prevCb; onTokenResponse(resp).then(()=>resolve(true)); };
+    try{ tokenClient.requestAccessToken({ prompt:'' }); }catch(e){ resolve(false); }
+  });
+}
+
+/* ========================= Drive API 헬퍼 ========================= */
+async function driveFetch(url, options={}){
+  await ensureFreshToken();
+  const headers = Object.assign({ Authorization: 'Bearer ' + accessToken }, options.headers||{});
+  const res = await fetch(url, Object.assign({}, options, { headers }));
+  if(res.status === 401){
+    toast('인증이 만료되었습니다. 다시 로그인해 주세요.');
+    throw new Error('unauthorized');
+  }
+  return res;
+}
+
+async function ensureFolder(name, parentId){
+  const safe = name.replace(/'/g, "\\'");
+  let q = `name='${safe}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  q += parentId ? ` and '${parentId}' in parents` : ` and 'root' in parents`;
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`);
+  const data = await res.json();
+  if(data.files && data.files.length) return data.files[0].id;
+  const body = { name, mimeType:'application/vnd.google-apps.folder' };
+  if(parentId) body.parents = [parentId];
+  const createRes = await driveFetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  const created = await createRes.json();
+  return created.id;
+}
+
+async function findFileInFolder(name, parentId){
+  const safe = name.replace(/'/g, "\\'");
+  const q = `name='${safe}' and '${parentId}' in parents and trashed=false`;
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`);
+  const data = await res.json();
+  return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+
+async function driveCreateFile(name, parentId, mimeType, blob){
+  const metadata = { name, parents: [parentId] };
+  const boundary = 'cqm_' + Math.random().toString(16).slice(2);
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelim = `\r\n--${boundary}--`;
+  const metaPart = delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata);
+  const fileHeader = delimiter + `Content-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`;
+  const fileBuffer = await blob.arrayBuffer();
+  const body = new Blob([ new TextEncoder().encode(metaPart+fileHeader), new Uint8Array(fileBuffer), new TextEncoder().encode(closeDelim) ]);
+  const res = await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method:'POST',
+    headers:{ 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body
+  });
+  const data = await res.json();
+  return data.id;
+}
+
+async function driveUpdateFileContent(fileId, mimeType, textOrBlob){
+  await driveFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    method:'PATCH', headers:{'Content-Type':mimeType}, body:textOrBlob
+  });
+}
+
+async function driveDownload(fileId, fileName){
+  try{
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fileName || 'download';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }catch(e){ toast('다운로드에 실패했습니다'); }
+}
+
+async function driveRename(fileId, newName){
+  try{
+    await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name:newName })
+    });
+  }catch(e){ /* 조용히 무시 */ }
+}
+
+async function driveTrash(fileId){
+  if(!fileId) return;
+  try{
+    await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({trashed:true})
+    });
+  }catch(e){ /* 조용히 무시 */ }
+}
+
+/* ========================= 부트스트랩 / 메타데이터 ========================= */
+async function bootstrap(){
+  setSync('busy', '연결 중...');
+  try{
+    rootFolderId = await ensureFolder(ROOT_FOLDER_NAME, PARENT_FOLDER_ID || null);
+    templatesFolderId = await ensureFolder('templates', rootFolderId);
+    recordsFolderId = await ensureFolder('records', rootFolderId);
+    let metaId = await findFileInFolder('metadata.json', rootFolderId);
+    if(!metaId){
+      metaId = await driveCreateFile('metadata.json', rootFolderId, 'application/json', new Blob([JSON.stringify(state)], {type:'application/json'}));
+    }
+    metadataFileId = metaId;
+    await loadMetadata();
+    setSync('on', '동기화됨 · ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+    renderAll();
+  }catch(e){
+    console.error(e);
+    setSync('off', '연결 실패');
+    toast('Drive 연결에 실패했습니다. 클라이언트 ID/권한을 확인하세요.');
+  }
+}
+
+async function loadMetadata(){
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${metadataFileId}?alt=media`);
+  const text = await res.text();
+  try{ state = JSON.parse(text); }catch(e){ state = {templates:[], records:[]}; }
+  state.templates = state.templates || [];
+  state.records = state.records || [];
+}
+
+async function saveMetadata(){
+  setSync('busy', '저장 중...');
+  try{
+    await driveUpdateFileContent(metadataFileId, 'application/json', JSON.stringify(state));
+    setSync('on', '동기화됨 · ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    setSync('off', '저장 실패');
+    toast('저장에 실패했습니다. 다시 시도해 주세요.');
+  }
+}
+
+$('refreshBtn').addEventListener('click', async ()=>{
+  setSync('busy', '새로고침 중...');
+  await loadMetadata();
+  setSync('on', '동기화됨 · ' + new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}));
+  renderAll();
+  toast('최신 데이터를 불러왔습니다');
+});
+
+/* ========================= 탭 전환 ========================= */
+function renderMainTabs(){
+  const nav = $('mainTabs');
+  const tabs = [{ id:'templates', label:'양식 관리' }]
+    .concat(state.templates.map(t=>({ id:t.id, label:t.name })));
+  if(!tabs.find(t=>t.id===currentTab)) currentTab = 'templates';
+  nav.innerHTML = tabs.map(t=>`<button data-tab="${t.id}" class="${currentTab===t.id?'active':''}">${t.id==='templates'?'':'📑 '}${escapeHtml(t.label)}</button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{ currentTab = b.dataset.tab; renderMainTabs(); showActiveView(); });
+  });
+}
+function showActiveView(){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  if(currentTab === 'templates'){
+    $('view-templates').classList.add('active');
+  } else {
+    $('view-records').classList.add('active');
+    const tpl = getTpl(currentTab);
+    $('recViewTitle').textContent = tpl ? tpl.name : '작성 기록';
+    renderYearRow(); renderRecords();
+  }
+}
+window.goToRecordsTab = (tplId)=>{
+  currentTab = tplId;
+  renderMainTabs(); showActiveView();
+};
+
+function renderAll(){ renderTemplates(); renderMainTabs(); showActiveView(); }
+
+/* ========================= 양식 관리 ========================= */
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function isoFromDateInput(dateStr){ return new Date((dateStr||todayStr())+'T00:00:00').toISOString(); }
+function ymdCompact(dateStr){ return (dateStr||todayStr()).replace(/-/g,'').slice(2); }
+function getExt(fname){ const i=(fname||'').lastIndexOf('.'); return i>=0 ? fname.slice(i+1) : ''; }
+function buildTplFileName(name, code, dateStr, idx, total, ext){
+  let base = `(양식)${name}_${code || '문서번호없음'}_${ymdCompact(dateStr)}`;
+  if(total > 1) base += `_${idx+1}`;
+  return ext ? `${base}.${ext}` : base;
+}
+
+function getRevisionFiles(rev){
+  if(rev.files && rev.files.length) return rev.files;
+  if(rev.fileId) return [{ fileId: rev.fileId, fileName: rev.fileName }];
+  return [];
+}
+function renderTemplates(){
+  $('tplCount').textContent = state.templates.length + '/10';
+  const grid = $('tplGrid');
+  if(!state.templates.length){
+    grid.innerHTML = `<div class="empty">
+      <h3>등록된 양식이 없습니다</h3><p>교정품질문서 서식을 등록하고 개정 이력을 관리하세요.</p>
+      <button class="btn btn-primary" onclick="document.getElementById('addTplBtn').click()">+ 첫 양식 등록</button>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>문서번호</th><th>양식명</th><th>현재 버전</th><th>파일</th><th>최종 수정일</th><th>관리</th></tr></thead>
+    <tbody>${state.templates.map(t=>{
+      const latest = t.revisions[t.revisions.length-1];
+      const files = getRevisionFiles(latest);
+      const fileLinks = files.map(f=>`<button class="file-link" style="display:flex;margin-bottom:3px;" onclick="driveDownload('${f.fileId}','${escapeHtml(f.fileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(f.fileName))}</button>`).join('');
+      return `<tr>
+        <td class="rec-date">${t.code ? escapeHtml(t.code) : '-'}</td>
+        <td class="rec-title">${escapeHtml(t.name)}</td>
+        <td><span class="tag">REV.${String(latest.rev).padStart(2,'0')}</span></td>
+        <td>${fileLinks}</td>
+        <td class="rec-date">${fmtDate(latest.uploadedAt)}</td>
+        <td class="actions-cell">
+          <button class="btn btn-sm" onclick="goToRecordsTab('${t.id}')" title="이 양식의 작성 기록으로 이동">📑 작성 기록</button>
+          <button class="btn btn-sm" onclick="openTplEdit('${t.id}')">문구 수정</button>
+          <button class="btn btn-sm" onclick="openRevModal('${t.id}')">+ 수정본</button>
+          <button class="btn btn-sm" onclick="openHistory('${t.id}')">이력 (${t.revisions.length})</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTemplate('${t.id}')">삭제</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+$('addTplBtn').addEventListener('click', ()=>{
+  if(state.templates.length >= 10){ toast('양식은 최대 10개까지 등록할 수 있습니다'); return; }
+  $('tplName').value=''; $('tplCode').value=''; $('tplDate').value=todayStr(); $('tplFile').value=''; $('tplFile-name').textContent='';
+  openModal('modal-tpl');
+});
+$('saveTplBtn').addEventListener('click', async ()=>{
+  const name = $('tplName').value.trim();
+  const code = $('tplCode').value.trim();
+  const dateStr = $('tplDate').value || todayStr();
+  const selectedFiles = Array.from($('tplFile').files);
+  if(!name || !selectedFiles.length){ toast('양식명과 파일을 입력하세요'); return; }
+  if(state.templates.length >= 10){ toast('양식은 최대 10개까지 등록할 수 있습니다'); return; }
+  closeModal('modal-tpl'); setSync('busy','업로드 중...');
+  const tplId = uid();
+  const folderName = (code ? `${code}_${name}` : name).slice(0,90);
+  const folderId = await ensureFolder(folderName, templatesFolderId);
+  const files = [];
+  for(let i=0;i<selectedFiles.length;i++){
+    const f = selectedFiles[i];
+    const savedName = buildTplFileName(name, code, dateStr, i, selectedFiles.length, getExt(f.name));
+    const fileId = await driveCreateFile(savedName, folderId, f.type, f);
+    files.push({ fileId, fileName: savedName });
+  }
+  state.templates.push({
+    id: tplId, name, code, driveFolderId: folderId, createdAt: nowIso(),
+    revisions: [{ rev:0, files, uploadedAt: isoFromDateInput(dateStr), note:'최초 등록' }]
+  });
+  await saveMetadata(); renderTemplates(); renderMainTabs();
+  toast('양식이 등록되었습니다');
+});
+
+function getTpl(id){ return state.templates.find(t=>t.id===id); }
+
+let tplEditTargetId = null;
+window.openTplEdit = (tplId)=>{
+  tplEditTargetId = tplId; const t = getTpl(tplId);
+  $('tplEditName').value = t.name; $('tplEditCode').value = t.code || '';
+  $('tplEditDate').value = (t.revisions[0].uploadedAt || nowIso()).slice(0,10);
+  openModal('modal-tpl-edit');
+};
+$('saveTplEditBtn').addEventListener('click', async ()=>{
+  const t = getTpl(tplEditTargetId);
+  const name = $('tplEditName').value.trim();
+  if(!name){ toast('양식명을 입력하세요'); return; }
+  t.name = name; t.code = $('tplEditCode').value.trim();
+  const dateStr = $('tplEditDate').value || todayStr();
+  closeModal('modal-tpl-edit');
+  setSync('busy','저장 중...');
+  const folderName = (t.code ? `${t.code}_${t.name}` : t.name).slice(0,90);
+  await driveRename(t.driveFolderId, folderName);
+  const rev0 = t.revisions[0];
+  rev0.uploadedAt = isoFromDateInput(dateStr);
+  const filesArr = getRevisionFiles(rev0);
+  for(let i=0;i<filesArr.length;i++){
+    const f = filesArr[i];
+    const newName = buildTplFileName(t.name, t.code, dateStr, i, filesArr.length, getExt(f.fileName));
+    await driveRename(f.fileId, newName);
+    f.fileName = newName;
+  }
+  rev0.files = filesArr; delete rev0.fileId; delete rev0.fileName;
+  await saveMetadata(); renderTemplates(); renderMainTabs();
+  if(currentTab !== 'templates') showActiveView();
+  toast('양식 정보가 수정되었습니다');
+});
+let revTargetId = null;
+window.openRevModal = (tplId)=>{
+  revTargetId = tplId; const t = getTpl(tplId);
+  $('revSub').textContent = `${t.name} · 현재 REV.${String(t.revisions[t.revisions.length-1].rev).padStart(2,'0')} → 새 버전 등록`;
+  $('revFile').value=''; $('revFile-name').textContent=''; $('revNote').value=''; $('revDate').value=todayStr();
+  openModal('modal-rev');
+};
+$('saveRevBtn').addEventListener('click', async ()=>{
+  const t = getTpl(revTargetId); const selectedFiles = Array.from($('revFile').files); const note = $('revNote').value.trim();
+  const dateStr = $('revDate').value || todayStr();
+  if(!selectedFiles.length){ toast('파일을 선택하세요'); return; }
+  closeModal('modal-rev'); setSync('busy','업로드 중...');
+  const nextRev = t.revisions[t.revisions.length-1].rev + 1;
+  const files = [];
+  for(let i=0;i<selectedFiles.length;i++){
+    const f = selectedFiles[i];
+    const savedName = buildTplFileName(t.name, t.code, dateStr, i, selectedFiles.length, getExt(f.name));
+    const fileId = await driveCreateFile(savedName, t.driveFolderId, f.type, f);
+    files.push({ fileId, fileName: savedName });
+  }
+  t.revisions.push({ rev: nextRev, files, uploadedAt: isoFromDateInput(dateStr), note });
+  await saveMetadata(); renderTemplates();
+  toast(`REV.${String(nextRev).padStart(2,'0')} 등록되었습니다`);
+});
+
+window.openHistory = (tplId)=>{
+  const t = getTpl(tplId);
+  $('histTitle').textContent = t.name + ' · 개정 이력';
+  const list = [...t.revisions].reverse();
+  const latestRev = t.revisions[t.revisions.length-1].rev;
+  $('historyList').innerHTML = list.map(r=>{
+    const files = getRevisionFiles(r);
+    const fileRows = files.map(f=>`<div style="display:flex;align-items:center;gap:8px;margin-top:3px;"><span style="flex:1;font-size:12px;">${escapeHtml(f.fileName)}</span><button class="btn btn-sm" onclick="driveDownload('${f.fileId}','${escapeHtml(f.fileName).replace(/'/g,"")}')">⬇</button></div>`).join('');
+    return `<div class="history-item" style="align-items:flex-start;">
+      <span class="tag ${r.rev===latestRev?'':'outline'}">REV.${String(r.rev).padStart(2,'0')}</span>
+      <div class="fn">${fileRows}<div class="note">${fmtDate(r.uploadedAt)}${r.note ? ' · '+escapeHtml(r.note) : ''}</div></div>
+    </div>`;
+  }).join('');
+  openModal('modal-history');
+};
+window.driveDownload = driveDownload;
+
+window.deleteTemplate = async (tplId)=>{
+  const t = getTpl(tplId);
+  if(!confirm(`"${t.name}" 양식과 전체 개정 이력을 삭제할까요? 관련 작성 기록은 유지됩니다.`)) return;
+  setSync('busy','삭제 중...');
+  for(const r of t.revisions){ for(const f of getRevisionFiles(r)){ await driveTrash(f.fileId); } }
+  await driveTrash(t.driveFolderId);
+  state.templates = state.templates.filter(x=>x.id!==tplId);
+  if(currentTab === tplId) currentTab = 'templates';
+  await saveMetadata(); renderTemplates(); renderMainTabs(); showActiveView();
+  toast('삭제되었습니다');
+};
+
+/* ========================= 작성 기록 ========================= */
+function matchesCurrentTab(r){
+  return r.templateId === currentTab;
+}
+function allYears(){
+  const relevant = state.records.filter(matchesCurrentTab);
+  const ys = new Set(relevant.map(r=>r.year));
+  ys.add(new Date().getFullYear());
+  return [...ys].sort((a,b)=>b-a);
+}
+function renderYearRow(){
+  const ys = allYears();
+  if(!ys.includes(currentYear)) currentYear = ys[0];
+  $('yearRow').innerHTML = ys.map(y=>`<button class="year-chip ${y===currentYear?'active':''}" data-year="${y}">${y}</button>`).join('');
+  $('yearRow').querySelectorAll('.year-chip').forEach(b=>{
+    b.addEventListener('click', ()=>{ currentYear = Number(b.dataset.year); renderYearRow(); renderRecords(); });
+  });
+}
+function getRecordFiles(r){
+  if(r.files && r.files.length) return r.files;
+  if(r.fileId) return [{ fileId:r.fileId, fileName:r.fileName }];
+  return [];
+}
+function renderRecords(){
+  const recs = state.records
+    .filter(r=> r.year===currentYear && matchesCurrentTab(r))
+    .sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt));
+  $('recCount').textContent = `${currentYear}년 · ${recs.length}건`;
+  const host = $('recordsHost');
+  if(!recs.length){
+    host.innerHTML = `<div class="empty">
+      <h3>${currentYear}년 등록된 기록이 없습니다</h3><p>양식을 작성한 파일을 등록해 보세요.</p>
+      <button class="btn btn-primary" onclick="document.getElementById('addRecBtn').click()">+ 새 기록 등록</button>
+    </div>`;
+    return;
+  }
+  host.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>상태</th><th>제목</th><th>등록일</th><th>작성 파일</th><th>서명본</th><th>관리</th></tr></thead>
+    <tbody>${recs.map(r=>{
+      const files = getRecordFiles(r);
+      const fileLinks = files.map(f=>`<button class="file-link" style="display:flex;margin-bottom:3px;" onclick="driveDownload('${f.fileId}','${escapeHtml(f.fileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(f.fileName))}</button>`).join('');
+      return `<tr>
+        <td>${r.signedFileId ? '<span class="tag green">서명완료</span>' : '<span class="tag amber">서명대기</span>'}</td>
+        <td><div class="rec-title">${escapeHtml(r.title)}</div>${r.memo?`<div class="rec-memo">${escapeHtml(r.memo)}</div>`:''}</td>
+        <td class="rec-date">${fmtDate(r.createdAt)}</td>
+        <td>${fileLinks}</td>
+        <td>${r.signedFileId
+              ? `<button class="file-link" onclick="driveDownload('${r.signedFileId}','${escapeHtml(r.signedFileName).replace(/'/g,"")}')">⬇ ${escapeHtml(shortName(r.signedFileName))}</button>`
+              : `<button class="btn btn-sm" onclick="openSignedModal('${r.id}')">+ 서명본 등록</button>`}
+        </td>
+        <td class="actions-cell">
+          <button class="btn btn-sm" onclick="openAddFileModal('${r.id}')">+ 파일 추가</button>
+          ${r.signedFileId ? `<button class="btn btn-sm" onclick="openSignedModal('${r.id}')">서명본 교체</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">삭제</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+function shortName(n){ return (n && n.length>18) ? n.slice(0,15)+'…' : n; }
+
+$('addRecBtn').addEventListener('click', ()=>{
+  if(!state.templates.length){ toast('먼저 양식을 하나 이상 등록하세요'); return; }
+  $('recYear').value = currentYear;
+  $('recTpl').innerHTML = state.templates.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}${t.code?` (${escapeHtml(t.code)})`:''}</option>`).join('');
+  if(getTpl(currentTab)) $('recTpl').value = currentTab;
+  $('recTitle').value=''; $('recMemo').value=''; $('recFile').value=''; $('recFile-name').textContent=''; $('recSigned').value=''; $('recSigned-name').textContent='';
+  openModal('modal-rec');
+});
+$('saveRecBtn').addEventListener('click', async ()=>{
+  const year = Number($('recYear').value) || currentYear;
+  const templateId = $('recTpl').value;
+  const title = $('recTitle').value.trim();
+  const memo = $('recMemo').value.trim();
+  const selectedFiles = Array.from($('recFile').files);
+  const signed = $('recSigned').files[0];
+  if(!title || !selectedFiles.length){ toast('제목과 작성 파일을 입력하세요'); return; }
+  closeModal('modal-rec'); setSync('busy','업로드 중...');
+  const yearFolderId = await getRecordYearFolder(templateId, year);
+  const uploaded = [];
+  for(const f of selectedFiles){
+    const fileId = await driveCreateFile(`${title}_원본_${f.name}`, yearFolderId, f.type, f);
+    uploaded.push({ fileId, fileName: f.name });
+  }
+  let signedFileId = null, signedFileName = null;
+  if(signed){
+    signedFileId = await driveCreateFile(`${title}_서명본_${signed.name}`, yearFolderId, signed.type || 'application/pdf', signed);
+    signedFileName = signed.name;
+  }
+  state.records.push({
+    id: uid(), year, templateId, title, memo,
+    files: uploaded,
+    signedFileId, signedFileName,
+    createdAt: nowIso()
+  });
+  currentYear = year;
+  currentTab = templateId;
+  await saveMetadata(); renderMainTabs(); showActiveView();
+  toast('기록이 등록되었습니다');
+});
+
+let addFileTargetId = null;
+window.openAddFileModal = (recId)=>{
+  addFileTargetId = recId; const r = state.records.find(x=>x.id===recId);
+  $('addfileSub').textContent = `"${r.title}"에 작성 파일을 추가로 첨부합니다.`;
+  $('addFile').value=''; $('addFile-name').textContent='';
+  openModal('modal-addfile');
+};
+$('saveAddFileBtn').addEventListener('click', async ()=>{
+  const r = state.records.find(x=>x.id===addFileTargetId);
+  const selectedFiles = Array.from($('addFile').files);
+  if(!selectedFiles.length){ toast('파일을 선택하세요'); return; }
+  closeModal('modal-addfile'); setSync('busy','업로드 중...');
+  const yearFolderId = await getRecordYearFolder(r.templateId, r.year);
+  const existing = getRecordFiles(r);
+  for(const f of selectedFiles){
+    const fileId = await driveCreateFile(`${r.title}_원본_${f.name}`, yearFolderId, f.type, f);
+    existing.push({ fileId, fileName: f.name });
+  }
+  r.files = existing;
+  delete r.fileId; delete r.fileName;
+  await saveMetadata(); renderRecords();
+  toast('파일이 추가되었습니다');
+});
+
+let signedTargetId = null;
+window.openSignedModal = (recId)=>{
+  signedTargetId = recId; const r = state.records.find(x=>x.id===recId);
+  $('signedSub').textContent = `"${r.title}"에 대한 상부 서명본 PDF를 등록합니다.`;
+  $('signedFile').value=''; $('signedFile-name').textContent='';
+  openModal('modal-signed');
+};
+$('saveSignedBtn').addEventListener('click', async ()=>{
+  const r = state.records.find(x=>x.id===signedTargetId);
+  const file = $('signedFile').files[0];
+  if(!file){ toast('PDF 파일을 선택하세요'); return; }
+  closeModal('modal-signed'); setSync('busy','업로드 중...');
+  const yearFolderId = await getRecordYearFolder(r.templateId, r.year);
+  if(r.signedFileId) await driveTrash(r.signedFileId);
+  const fileId = await driveCreateFile(`${r.title}_서명본_${file.name}`, yearFolderId, file.type || 'application/pdf', file);
+  r.signedFileId = fileId; r.signedFileName = file.name;
+  await saveMetadata(); renderRecords();
+  toast('서명본이 등록되었습니다');
+});
+
+window.deleteRecord = async (recId)=>{
+  const r = state.records.find(x=>x.id===recId);
+  if(!confirm(`"${r.title}" 기록을 삭제할까요? 등록된 파일도 Drive 휴지통으로 이동합니다.`)) return;
+  setSync('busy','삭제 중...');
+  for(const f of getRecordFiles(r)){ await driveTrash(f.fileId); }
+  if(r.signedFileId) await driveTrash(r.signedFileId);
+  state.records = state.records.filter(x=>x.id!==recId);
+  await saveMetadata(); renderYearRow(); renderRecords();
+  toast('삭제되었습니다');
+};
+</script>
+</body>
+</html>
