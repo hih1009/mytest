@@ -624,8 +624,22 @@ let ROLE_MARKERS = {
   reviewer: localStorage.getItem('cqm_marker_reviewer') || '(확인서명)',
   approver: localStorage.getItem('cqm_marker_approver') || '(승인서명)'
 };
-let FB_CONFIG = null;
-try{ FB_CONFIG = JSON.parse(localStorage.getItem('cqm_fb_config') || 'null'); }catch(e){ FB_CONFIG = null; }
+/* 기본 Firebase 설정 (하드코딩) - 기기/브라우저별로 다시 입력할 필요 없이 항상 이 값을 사용합니다.
+   [설정]에서 다른 값을 저장하면 localStorage 값이 우선 적용됩니다. */
+const DEFAULT_FB_CONFIG = {
+  "apiKey": "AIzaSyA7Pd6sOOleG0tdyDXVELcFcZtNiUuSkyI",
+  "authDomain": "kolas-doc-manager.firebaseapp.com",
+  "projectId": "kolas-doc-manager",
+  "storageBucket": "kolas-doc-manager.firebasestorage.app",
+  "messagingSenderId": "949051187014",
+  "appId": "1:949051187014:web:986c9efb6fc53251228f47",
+  "measurementId": "G-2CTJ4QTNC8"
+};
+let FB_CONFIG = DEFAULT_FB_CONFIG;
+try{
+  const saved = JSON.parse(localStorage.getItem('cqm_fb_config') || 'null');
+  if(saved) FB_CONFIG = saved;
+}catch(e){ /* 저장된 값이 손상된 경우 기본값 사용 */ }
 let fbUser = null;      // firebase auth 사용자
 let fbProfile = null;   // Firestore signers/{uid} 문서 { email, displayName, role, signatureImage }
 
